@@ -1,4 +1,4 @@
-﻿------------------------------
+------------------------------
 -- Nomads Campaign - Mission 3
 --
 -- Author: speed2
@@ -165,6 +165,9 @@ function OnPopulate(self)
     -- Walls
     ScenarioUtils.CreateArmyGroup('Aeon', 'M1_Walls')
 
+    -- Refresh build restriction in support factories and engineers
+    ScenarioFramework.RefreshRestrictions('Aeon')
+
     -- Initial Patrols
     -- Air Patrol
     local platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M1_Initial_Air_Patrol_D' .. Difficulty, 'NoFormation')
@@ -202,14 +205,15 @@ function OnPopulate(self)
     end
 
     -- Crashed Ship
-    ScenarioInfo.CrashedShip = ScenarioUtils.CreateArmyUnit('Crashed_Ship', 'Crashed_Ship')
+    --ScenarioInfo.CrashedShip = ScenarioUtils.CreateArmyUnit('Crashed_Ship', 'Crashed_Ship')
+    ScenarioInfo.CrashedShip = ScenarioUtils.CreateArmyUnit('Crashed_Ship', 'Crashed_Cruiser')
     ScenarioInfo.CrashedShip:SetCustomName('Crashed Ship')
     ScenarioInfo.CrashedShip:SetReclaimable(false)
     ScenarioInfo.CrashedShip:SetCapturable(false) 
     ScenarioInfo.CrashedShip:SetHealth(ScenarioInfo.CrashedShip, 2250)
     -- Adjust the position
     local pos = ScenarioInfo.CrashedShip:GetPosition()
-    ScenarioInfo.CrashedShip:SetPosition({pos[1], pos[2] - 3, pos[3]}, true)
+    --ScenarioInfo.CrashedShip:SetPosition({pos[1], pos[2] - 4.5, pos[3]}, true)
     ScenarioInfo.CrashedShip:StopRotators()
     local thread = ForkThread(ShipHPThread)
     ScenarioInfo.CrashedShip.Trash:Add(thread)
@@ -294,45 +298,49 @@ function ShipDeath()
 end
 
 function PlayerWin()
-    ScenarioFramework.FlushDialogueQueue()
-    while ScenarioInfo.DialogueLock do
-        WaitSeconds(0.2)
-    end
-
-    ScenarioInfo.M1P1:ManualResult(true) -- Complete protect ship objective
-
-    WaitSeconds(2)
-
-    if not ScenarioInfo.OpEnded then
-        ScenarioFramework.EndOperationSafety({ScenarioInfo.CrashedShip})
-        ScenarioInfo.OpComplete = true
-
-        Cinematics.EnterNISMode()
-        WaitSeconds(2)
-
-        ScenarioFramework.Dialogue(OpStrings.PlayerWin1, nil, true)
-        Cinematics.CameraMoveToMarker('Cam_Final_1', 3)
-
-
-        ForkThread(
-            function()
-                WaitSeconds(1)
-                ScenarioInfo.CrashedShip:TakeOff()
-                WaitSeconds(3)
-                ScenarioInfo.CrashedShip:StartRotators()
+    ForkThread(
+        function()
+            ScenarioFramework.FlushDialogueQueue()
+            while ScenarioInfo.DialogueLock do
+                WaitSeconds(0.2)
             end
-        )
 
-        WaitSeconds(3)
+            ScenarioInfo.M1P1:ManualResult(true) -- Complete protect ship objective
 
-        Cinematics.CameraMoveToMarker('Cam_Final_2', 5)
+            WaitSeconds(2)
 
-        WaitSeconds(1)
+            if not ScenarioInfo.OpEnded then
+                ScenarioFramework.EndOperationSafety({ScenarioInfo.CrashedShip})
+                ScenarioInfo.OpComplete = true
 
-        Cinematics.CameraMoveToMarker('Cam_Final_3', 4)
+                Cinematics.EnterNISMode()
+                WaitSeconds(2)
 
-        KillGame()
-    end
+                ScenarioFramework.Dialogue(OpStrings.PlayerWin1, nil, true)
+                Cinematics.CameraMoveToMarker('Cam_Final_1', 3)
+
+
+                ForkThread(
+                    function()
+                        WaitSeconds(1)
+                        ScenarioInfo.CrashedShip:TakeOff()
+                        WaitSeconds(3)
+                        ScenarioInfo.CrashedShip:StartRotators()
+                    end
+                )
+
+                WaitSeconds(3)
+
+                Cinematics.CameraMoveToMarker('Cam_Final_2', 5)
+
+                WaitSeconds(1)
+
+                Cinematics.CameraMoveToMarker('Cam_Final_3', 4)
+
+                KillGame()
+            end
+        end
+    )
 end
 
 function KillGame()
@@ -358,7 +366,7 @@ function IntroMission1NIS()
         ScenarioInfo.PlayersACUs = {}
         local i = 1
         while armyList[ScenarioInfo['Player' .. i]] do
-            ScenarioInfo['Player' .. i .. 'CDR'] = ScenarioFramework.SpawnCommander('Player' .. i, 'ACU', false, true, true, PlayerDeath)
+            ScenarioInfo['Player' .. i .. 'CDR'] = ScenarioFramework.SpawnCommander('Player' .. i, 'ACU', 'Warp', true, true, PlayerDeath)
             table.insert(ScenarioInfo.PlayersACUs, ScenarioInfo['Player' .. i .. 'CDR'])
             WaitSeconds(1)
             local ship = GetArmyBrain('Player' .. i).NomadsMothership
@@ -895,6 +903,8 @@ function IntroMission2()
     -- Walls
     ScenarioUtils.CreateArmyGroup('Aeon', 'M2_Walls')
 
+    -- Refresh build restriction in support factories and engineers
+    ScenarioFramework.RefreshRestrictions('Aeon')
 
     -- Patrols
     -- North
@@ -905,7 +915,7 @@ function IntroMission2()
     end
 
     -- Naval base patrol
-    platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Init_North_Naval_Patrol_D' .. Difficulty, 'GrowthFormation')
+    platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Init_North_Naval_Patrol_D' .. Difficulty, 'NoFormation')
     for _, v in platoon:GetPlatoonUnits() do
         ScenarioFramework.GroupPatrolChain({v}, 'M2_Aeon_North_Base_Naval_Defense_Chain')
     end
@@ -922,8 +932,14 @@ function IntroMission2()
         ScenarioFramework.GroupPatrolRoute({v}, ScenarioPlatoonAI.GetRandomPatrolRoute(ScenarioUtils.ChainToPositions('M2_Aeon_South_Base_Air_Patrol_Chain')))
     end
 
+    -- Land base patrol
+    platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Init_South_Land_Patrol_D' .. Difficulty, 'NoFormation')
+    for _, v in platoon:GetPlatoonUnits() do
+        ScenarioFramework.GroupPatrolChain({v}, 'M2_Aeon_South_Base_Land_Patrol_Chain')
+    end
+
     -- Naval base patrol
-    platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Init_South_Naval_Patrol_D' .. Difficulty, 'GrowthFormation')
+    platoon = ScenarioUtils.CreateArmyGroupAsPlatoon('Aeon', 'M2_Init_South_Naval_Patrol_D' .. Difficulty, 'NoFormation')
     for _, v in platoon:GetPlatoonUnits() do
         ScenarioFramework.GroupPatrolChain({v}, 'M2_Aeon_South_Base_Naval_Defense_Chain')
     end
@@ -1328,14 +1344,18 @@ function IntroMission3()
     -- Start attacks
     M3AeonAI.StartAttacks()
 
-    -- Orbital Cannon Base
-    ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Aeon_Orbital_Base_D' .. Difficulty)
-    HandleT3Arties()
+    -- Research Base
+    ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Aeon_Research_Base_D' .. Difficulty)
 
     -- Walls
     ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Walls')
 
     -- Patrols
+
+    ------------
+    -- Objective
+    ------------
+    ScenarioInfo.M3ResearchBuildings = ScenarioUtils.CreateArmyGroup('Aeon', 'M3_Research_Buildings_D' .. Difficulty)
 
     -- Wreckages
     ScenarioUtils.CreateArmyGroup('Crystals', 'M3_Wrecks', true)
@@ -1600,8 +1620,8 @@ function StartMission3()
     -----------
     -- Triggers
     -----------
-    -- Objective to locate Orbital Cannons
-    ScenarioFramework.CreateTimerTrigger(M3LocateOrbitalCannons, 30)
+    -- Objective to locate Research Buildings
+    ScenarioFramework.CreateTimerTrigger(M3LocateResearchBuildings, 30)
 
     -- Unlock RAS
     ScenarioFramework.CreateTimerTrigger(M3RASUnlock, 2*60)
@@ -1630,20 +1650,19 @@ function StartMission3()
     end
 end
 
-function M3LocateOrbitalCannons()
+function M3LocateResearchBuildings()
     ScenarioFramework.Dialogue(OpStrings.M3LocateOrbitalCannons, nil, true)
 
-    local units = ArmyBrains[Aeon]:GetListOfUnits(categories.uab2302, false)
-    --------------------------------------------
-    -- Primary Objective - Locate Orbital Cannons
-    --------------------------------------------
+    ------------------------------------------------
+    -- Primary Objective - Locate Research Buildings
+    ------------------------------------------------
     ScenarioInfo.M3P2 = Objectives.Locate(
         'primary',
         'incomplete',
         OpStrings.M3P2Title,
         OpStrings.M3P2Description,
         {
-            Units = units,
+            Units = ScenarioInfo.M3ResearchBuildings,
         }
     )
     ScenarioInfo.M3P2:AddResultCallback(
@@ -1747,19 +1766,18 @@ function IntroMission4()
     ----------
     -- Aeon AI
     ----------
-    -- North Orbital Base
-    M4AeonAI.AeonM4OrbitalBaseNorthAI()
+    -- North Research Base
+    M4AeonAI.AeonM4ResearchBaseNorthAI()
 
-    -- South Orbital Base, if player didn't catch the transport in M2, else just Orbital Cannon with few defenses
+    -- South Research Base, if player didn't catch the transport in M2, else just Research buildings with few defenses
     if not ScenarioInfo.M2EngineersKilled then
-        M4AeonAI.AeonM4OrbitalBaseSouthAI()
+        M4AeonAI.AeonM4ResearchBaseSouthAI()
     else
-        ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Aeon_Orbital_Base_South_D' .. Difficulty)
+        ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Aeon_Research_Base_South_D' .. Difficulty)
     end
 
-    -- East Orbital Base
-    ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Aeon_Orbital_Base_East_D' .. Difficulty)
-    HandleT3Arties()
+    -- East Research Base
+    ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Aeon_Research_Base_East_D' .. Difficulty)
 
     -- TML Outposts, location picked randomly
     ChooseRandomBases()
@@ -1773,23 +1791,26 @@ function IntroMission4()
     -- Walls
     ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Walls')
 
+    -- Refresh build restriction in support factories and engineers
+    ScenarioFramework.RefreshRestrictions('Aeon')
+
     -- Expand the map, no cinematics in this part
     ScenarioFramework.SetPlayableArea('M4_Area', true)
 
     -- Wreckages
     ScenarioUtils.CreateArmyGroup('Crystals', 'M4_Wrecks', true)
 
-    -----------
-    -- Civilian
-    -----------
-    ScenarioUtils.CreateArmyGroup('Aeon_Neutral', 'M4_Civilian_Town')
+    ------------
+    -- Objective
+    ------------
+    ScenarioInfo.M4ResearchBuildings = ScenarioUtils.CreateArmyGroup('Aeon', 'M4_Research_Buildings_D' .. Difficulty)
 
     -- Give initial resources to the AI
     local num = {10000, 12000, 14000}
     ArmyBrains[Aeon]:GiveResource('MASS', num[Difficulty])
     ArmyBrains[Aeon]:GiveResource('ENERGY', 30000)
 
-    -- Tell player to destroy the orbital cannons
+    -- Tell player to destroy the Research Buildings
     ScenarioFramework.Dialogue(OpStrings.M4DestroyCannons, StartMission4, true)
 end
 
@@ -1834,9 +1855,9 @@ function M4TMLOutpost(location)
 end
 
 function StartMission4()
-    ---------------------------------------------
-    -- Primary Objective - Destroy Orbital Cannons
-    ---------------------------------------------
+    -------------------------------------------------
+    -- Primary Objective - Destroy Research Buildings
+    -------------------------------------------------
     ScenarioInfo.M4P1 = Objectives.CategoriesInArea(
         'primary',
         'incomplete',
@@ -1848,29 +1869,29 @@ function StartMission4()
             MarkArea = true,
             Requirements = {
                 {
-                    Area = 'M3_Aeon_Orbital_Base_Area',
-                    Category = categories.uab2302,
+                    Area = 'M3_Aeon_Research_Base_Area',
+                    Category = categories.CIVILIAN,
                     CompareOp = '<=',
                     Value = 0,
                     ArmyIndex = Aeon,
                 },
                 {
-                    Area = 'M4_Aeon_Orbital_Base_North_Area',
-                    Category = categories.uab2302,
+                    Area = 'M4_Aeon_Research_Base_North_Area',
+                    Category = categories.CIVILIAN,
                     CompareOp = '<=',
                     Value = 0,
                     ArmyIndex = Aeon,
                 },
                 {
-                    Area = 'M4_Aeon_Orbital_Base_East_Area',
-                    Category = categories.uab2302,
+                    Area = 'M4_Aeon_Research_Base_East_Area',
+                    Category = categories.CIVILIAN,
                     CompareOp = '<=',
                     Value = 0,
                     ArmyIndex = Aeon,
                 },
                 {
-                    Area = 'M4_Aeon_Orbital_Base_South_Area',
-                    Category = categories.uab2302,
+                    Area = 'M4_Aeon_Research_Base_South_Area',
+                    Category = categories.CIVILIAN,
                     CompareOp = '<=',
                     Value = 0,
                     ArmyIndex = Aeon,
@@ -1897,7 +1918,7 @@ function StartMission4()
         end
     )
 
-    -- Objective group to handle winning, Orbital cannons and reclaiming crystals
+    -- Objective group to handle winning, research buildings and reclaiming crystals
     ScenarioInfo.M4Objectives = Objectives.CreateGroup('M4Objectives', PlayerWin)
     ScenarioInfo.M4Objectives:AddObjective(ScenarioInfo.M4P1)
     if ScenarioInfo.M1P3.Active then
@@ -2249,14 +2270,6 @@ function ShipHPThread()
     end
 end
 
--- Hold fire and set uncapturable
-function HandleT3Arties()
-    for _, v in ArmyBrains[Aeon]:GetListOfUnits(categories.uab2302, false) do
-        v:SetFireState('HoldFire')
-        v:SetCapturable(false)
-    end
-end
-
 function SpawnArtillery()
     -- More storage for arty reload
     ArmyBrains[Crashed_Ship]:GiveStorage('ENERGY', 100000)
@@ -2311,7 +2324,6 @@ function ArtilleryAttackLocation(location)
         end, location
     )
 end
-
 
 -- Functions for randomly picking scenarios
 function ChooseRandomBases()
@@ -2422,5 +2434,4 @@ function OnShiftF4()
         v:Kill()
     end
 end
-
 
